@@ -2,6 +2,7 @@ import os
 import collections as ds
 
 import cv2
+import json
 
 import bitmap
 
@@ -54,6 +55,13 @@ class ObjectSlots(bitmap.Bitmap):
         if tidx < self._first_empty or self._first_empty == -1:
             self._update(tidx, 0)
 
+    def find_slot(self, func, params, lru=False):
+        for i in range(0, self._size) if not lru else range(self._size-1, -1, -1):
+            if self.check(i):
+                if func(self._slots[i], params):
+                    return i, self._slots[i]
+        return None
+
     def _update(self, idx, mode):
         if mode == -1:
             # SET
@@ -70,9 +78,50 @@ class ObjectSlots(bitmap.Bitmap):
 
 # Opencv GUI
 
+def localize(frame, name, max_slots=10):
+    record_name = name + 'initial_objects.json'
+
+    objSlots = ObjectSlots(max_slots)
+    mode = 0    # 0-draw, 1-edit
+    cur_slot = objSlots.next_slot()
+    cur_obj = [0, 0, 0, 0, False]   #[lx, ly, rx, ry, state]
+
+    def check(obj):
+        return obj.inBox(x, y)
+
+    def onMouse(event, x, y, flags, params):
+        # callback
+        # each press & release is a slot
+        pass
+  
+    # main part
+    inProcess = True
+    while(inProcess):
+        key = cv2.waitKey(0)
+
+        # 'e'-edit, 'd'-delete, 's'-save, 'q'-exit
+        if key == 'e':
+            mode = 1 - mode
+            print('Now mode={}'.format(mode))
+        elif key == 'd':
+            if mode == 1:
+                # TODO: erase
+                pass
+        elif key == 's':
+            # objslots -> file
+            with open(record_name, 'w') as f:
+                record = {}
+                # TODO: actual transform
+                json.dump(record, f)
+        elif key == 'q':
+            inProcess = False
+
+
+# Test
 
 def main():
     objSlots = ObjectSlots(10)
+
     try:
         breaks = [(5, 4), (5, 2), (11, 5)]
         cur = breaks.pop(0)
@@ -83,6 +132,7 @@ def main():
                 break
             A = InitializedObject(id=idx, x1=0, y1=0, x2=100, y2=100)
             objSlots.set_slot(A, A.id)
+            print('Check: ', str(objSlots.find_slot(lambda x, y: x.inBox(y['x'], y['y']), {'x':10, 'y':10}, lru=True)))
             print('nEXT: {}'.format(objSlots.next_slot()))
             while i == cur[0]:
                 objSlots.clear_slot(cur[1])
