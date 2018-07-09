@@ -15,7 +15,6 @@ class Bitmap(object):
         btidx, ibtidx = self._index(pos)
         bt = self._array[btidx]
         self._array[btidx] = bt | (1 << ibtidx)
-        print(self._array)
 
     def set_0(self, pos):
         btidx, ibtidx = self._index(pos)
