@@ -8,7 +8,9 @@ import bitmap
 import video_loader as vl
 
 
-# Data Structure for initial objects
+"""
+    Data Structure for initial objects
+"""
 
 class InitializedObject(ds.namedtuple('INITObj', ['id', 'x1', 'y1', 'x2', 'y2'])):
 
@@ -81,10 +83,30 @@ class ObjectSlots(bitmap.Bitmap):
             self._first_empty = idx
 
 
-# Opencv GUI
+"""
+    Opencv GUI
+"""
 
-def localize(frame, name, max_slots=10):
-    record_name = name + 'initial_objects.json'
+def localize(frame, name, old_size, new_size, max_slots=10):
+    record_name = name + '_initial_objects.json'
+    if os.path.exists(record_name):
+        print('Initial objects have been localized. Now show the result.')
+        print('  Remove the file if you want to re-localize.')
+        print('  File path: ' + record_name)
+        with open(record_name, 'r') as f:
+            data = json.load(f)
+            cur_frame = frame.copy()
+            for _, obj in data['objects'].items():
+                cv2.rectangle(
+                    cur_frame,
+                    (int(obj[0]), int(obj[1])),
+                    (int(obj[2]), int(obj[3])),
+                    (255, 0, 0),
+                    2
+                )
+            cv2.imshow('Existed result', cur_frame)
+            cv2.waitKey(0)
+        return
 
     objSlots = ObjectSlots(max_slots)
     mode = 0    # 0-draw, 1-edit
@@ -186,17 +208,25 @@ def localize(frame, name, max_slots=10):
             if not isDown:
                 with open(record_name, 'w') as f:
                     record = {}
+                    cnt = 0
                     # TODO: actual transform
+                    record['objects'] = {}
                     for i in range(0, max_slots):
                         if objSlots.check(i):
                             slot = objSlots.get_slot(i)
-                            record[str(i)] = [slot.x1, slot.y1, slot.x2, slot.y2]
+                            record['objects'][str(i)] = [slot.x1, slot.y1, slot.x2, slot.y2]
+                            cnt = cnt + 1
+                    record['old_size'] = old_size
+                    record['new_size'] = new_size
+                    record['num_obj'] = cnt
                     json.dump(record, f)
                     print(record_name + 'Successfully saved')
         elif key & 0xFF == ord('q'):
             inProcess = False
 
-# Test
+"""
+    Test
+"""
 
 def main():
     path = 'F:\\data\\animal\\nmice_color\\ch03_20180703185712'
@@ -205,12 +235,14 @@ def main():
     # new_tar = 1
     # new_ext = '.avi'
     # old_ext = '.mp4'
-    # new_size = (640, 360)
+    new_size = (360, 640)
 
     loader = vl.VideoLoader(os.path.join(path, video_name))
     for frames, nframe in loader.get(count=16):
         frame = frames[0]
-        localize(frame, os.path.join(path, video_name).replace(ext, ''))
+        old_size = frame.shape
+        frame = cv2.resize(frame, new_size)
+        localize(frame, os.path.join(path, video_name).replace(ext, ''), old_size, new_size)
         break
             
   
